@@ -1,7 +1,9 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import multer from 'multer';
-import * as pdf from 'pdf-parse';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdf = require('pdf-parse');
 import mammoth from 'mammoth';
 import cors from 'cors';
 import path from 'path';
@@ -60,8 +62,8 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
       console.log(`--- Processing PDF: ${filename} (${buffer.length} bytes)`);
       try {
         // Use the standard pdf-parse (v1.1.1)
-        // We use the imported 'pdf' instead of require inside the handler
-        const parseFn = (pdf as any).default || pdf;
+        // With require, 'pdf' is the function directly
+        const parseFn = pdf;
         
         if (typeof parseFn !== 'function') {
           console.error('!!! pdf-parse is not a function. Type:', typeof parseFn);
@@ -69,6 +71,7 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
         }
 
         console.log('Starting PDF extraction...');
+        // pdf-parse can be slow, so we log before and after
         const data = await parseFn(buffer);
         console.log(`PDF extraction complete. Extracted ${data?.text?.length || 0} characters.`);
         text = data.text;

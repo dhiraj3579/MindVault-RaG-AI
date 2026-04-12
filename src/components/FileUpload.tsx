@@ -28,6 +28,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
 
     for (const file of Array.from(selectedFiles)) {
       try {
+        // Vercel has a 4.5MB payload limit for serverless functions
+        if (file.size > 4.5 * 1024 * 1024) {
+          throw new Error('File is too large for Vercel (max 4.5MB). Please try a smaller file.');
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 

@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import multer from 'multer';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -113,6 +112,7 @@ app.use('/api/*', (req, res) => {
 // Vite middleware for development
 async function setupVite(app: any) {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

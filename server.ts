@@ -60,34 +60,11 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
     if (mimetype === 'application/pdf') {
       console.log(`--- Processing PDF: ${filename}`);
       try {
-        const mod = await import('pdf-parse');
-        let textResult = '';
-
-        // Handle Mehmet Kozan's class-based version (v2.x.x)
-        if (mod.PDFParse) {
-          console.log('Using class-based PDFParse');
-          const parser = new mod.PDFParse({ data: buffer });
-          const result = await parser.getText();
-          textResult = result.text;
-        } 
-        // Handle classic function-based version (v1.x.x)
-        else {
-          let parseFn = (mod as any).default || mod;
-          if (typeof parseFn !== 'function' && (parseFn as any).pdfParse) {
-            parseFn = (parseFn as any).pdfParse;
-          }
-
-          if (typeof parseFn === 'function') {
-            console.log('Using function-based pdf-parse');
-            const data = await parseFn(buffer);
-            textResult = data.text;
-          } else {
-            console.error('!!! pdf-parse is not a function or class. Keys:', Object.keys(mod));
-            throw new Error('PDF parsing library is not correctly initialized');
-          }
-        }
+        // Use the standard pdf-parse (v1.1.1) which is pure JS and lighter
+        const pdfParser = require('pdf-parse');
         
-        text = textResult;
+        const data = await pdfParser(buffer);
+        text = data.text;
       } catch (pdfErr: any) {
         console.error(`!!! PDF Parse Error for ${filename}:`, pdfErr);
         return res.status(422).json({ error: `Failed to read PDF content: ${pdfErr.message}` });
@@ -160,8 +137,7 @@ if (process.env.NODE_ENV !== 'production' || process.env.VITE_START_SERVER === '
     });
   });
 } else {
-  // In production (Vercel), we just need to ensure static serving is set up
-  // but Vercel handles static files via vercel.json usually.
-  // We still call setupVite to handle the SPA fallback if needed.
-  setupVite(app);
+  // In production (Vercel), we don't need setupVite because vercel.json
+  // handles static files and rewrites. This keeps the function slim.
+  console.log('Production mode: Serverless function initialized');
 }

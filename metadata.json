@@ -1,0 +1,5 @@
+{
+  "name": "MindVault: RAG AI Knowledge Assistant",
+  "description": "MindVault is a privacy-first, personal knowledge assistant that uses Retrieval-Augmented Generation (RAG) to let you chat with your documents. Built with React, Express, and Google's Gemini API, it supports PDF, DOCX, and TXT files to provide grounded, accurate answers based on your own data.",
+  "requestFramePermissions": []
+}

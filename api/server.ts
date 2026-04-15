@@ -73,6 +73,29 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }
 });
 
+async function startServer() {
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      // Apply Vite middleware BEFORE other routes
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn('Vite not found, skipping middleware');
+    }
+
+    const PORT = 3000;
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
+}
+
+startServer();
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -156,7 +179,7 @@ app.post('/api/chat', async (req: any, res: any) => {
 
     const prompt = `Context:\n${context}\n\nQuestion: ${message}`;
     const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
     });
 
@@ -177,25 +200,3 @@ app.get('/api/stats', (req, res) => {
 });
 
 export default app;
-
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    try {
-      const { createServer: createViteServer } = await import('vite');
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: 'spa',
-      });
-      app.use(vite.middlewares);
-    } catch (e) {
-      console.warn('Vite not found, skipping middleware');
-    }
-
-    const PORT = 3000;
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
-}
-
-startServer();

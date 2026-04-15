@@ -3,42 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <title>MindVault AI</title>
   </head>
   <body>
-    <div id="root">
-      <div id="loading-screen" style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; color: #666; background: #fff;">
-        Loading MindVault...
-      </div>
-    </div>
-    <script>
-      console.log('Index.html loaded');
-      window.onerror = function(msg, url, line, col, error) {
-        console.error('Frontend Error:', msg, url, line, col, error);
-        var div = document.createElement('div');
-        div.style.position = 'fixed';
-        div.style.top = '0';
-        div.style.left = '0';
-        div.style.width = '100%';
-        div.style.padding = '20px';
-        div.style.backgroundColor = '#fff1f2';
-        div.style.color = '#e11d48';
-        div.style.borderBottom = '1px solid #fda4af';
-        div.style.zIndex = '999999';
-        div.style.fontFamily = 'monospace';
-        div.style.fontSize = '12px';
-        div.style.whiteSpace = 'pre-wrap';
-        div.innerHTML = '<strong>Frontend Error Detected:</strong><br>' + msg + '<br><br>URL: ' + url + '<br>Line: ' + line + ':' + col;
-        document.body.appendChild(div);
-      };
-      setTimeout(function() {
-        var loading = document.getElementById('loading-screen');
-        if (loading && !window.__APP_INITIALIZED__) {
-          loading.innerHTML = 'Loading taking longer than expected... Check console for errors.';
-        }
-      }, 5000);
-    </script>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

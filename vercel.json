@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "framework": "vite",
   "builds": [
     {
       "src": "package.json",
@@ -7,14 +8,14 @@
       "config": { "distDir": "dist" }
     },
     {
-      "src": "api/server.ts",
+      "src": "api/index.ts",
       "use": "@vercel/node"
     }
   ],
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/server.ts"
+      "destination": "/api/index.ts"
     },
     {
       "source": "/(.*)",

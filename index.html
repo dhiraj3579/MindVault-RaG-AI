@@ -4,9 +4,67 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MindVault AI</title>
+    <style>
+      #loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #09090b;
+        color: #fafafa;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255,255,255,0.1);
+        border-radius: 50%;
+        border-top-color: #6366f1;
+        animation: spin 1s ease-in-out infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      #error-display {
+        display: none;
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        background: #450a0a;
+        color: #fecaca;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid #7f1d1d;
+        font-family: monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        z-index: 9999;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="loading-screen">
+        <div class="spinner"></div>
+        <div id="loading-text">Initializing MindVault...</div>
+      </div>
+    </div>
+    <div id="error-display"></div>
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        const display = document.getElementById('error-display');
+        display.style.display = 'block';
+        display.innerHTML = '<strong>Frontend Error:</strong>\n' + msg + '\n\nSource: ' + url + '\nLine: ' + line + ':' + col;
+        console.error('Diagnostic Error:', msg, error);
+      };
+      setTimeout(() => {
+        const text = document.getElementById('loading-text');
+        if (text && !window.__APP_INITIALIZED__) {
+          text.innerHTML = 'Still loading... If this persists, check your browser console or Vercel logs.';
+        }
+      }, 5000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

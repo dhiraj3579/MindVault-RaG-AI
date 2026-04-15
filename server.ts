@@ -285,7 +285,8 @@ async function setupVite(app: any) {
     console.log('--- Vite Server Created, using middlewares ---');
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.resolve(process.cwd(), 'dist');
+    console.log(`--- Serving static files from: ${distPath} ---`);
     app.use(express.static(distPath));
     app.get('*', (req: any, res: any) => {
       res.sendFile(path.join(distPath, 'index.html'));

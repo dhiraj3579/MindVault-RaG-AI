@@ -6,7 +6,6 @@
 import { useState } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { ChatInterface } from './components/ChatInterface';
-import { ragService } from './services/ragService';
 import { Database, FileText, Layout, Info, Github, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -15,8 +14,14 @@ export default function App() {
   const [chunkCount, setChunkCount] = useState(0);
   const [apiStatus, setApiStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  const handleUploadComplete = () => {
-    setChunkCount(ragService.getChunkCount());
+  const handleUploadComplete = async () => {
+    try {
+      const res = await fetch('/api/stats');
+      const data = await res.json();
+      setChunkCount(data.chunkCount);
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
+    }
   };
 
   const showStatus = (message: string, type: 'success' | 'error' | 'info' = 'info') => {

@@ -1,18 +1,60 @@
 import express from 'express';
 import multer from 'multer';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const pdf = require('pdf-parse');
+import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
+
+// Initialize Gemini
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+
+// In-memory RAG storage (simplified for demo)
+interface DocumentChunk {
+  text: string;
+  embedding: number[];
+  filename: string;
+}
+let documentChunks: DocumentChunk[] = [];
+
+function chunkText(text: string, chunkSize: number = 1000, overlap: number = 200): string[] {
+  const chunks: string[] = [];
+  let start = 0;
+  while (start < text.length) {
+    const end = Math.min(start + chunkSize, text.length);
+    chunks.push(text.slice(start, end));
+    start += chunkSize - overlap;
+  }
+  return chunks;
+}
+
+async function generateEmbeddings(texts: string[]): Promise<number[][]> {
+  const response = await ai.models.embedContent({
+    model: "gemini-embedding-2-preview",
+    contents: texts
+  });
+  if (!response.embeddings) throw new Error("No embeddings returned");
+  return response.embeddings.map(e => e.values);
+}
+
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -60,18 +102,20 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
     if (mimetype === 'application/pdf') {
       console.log(`--- Processing PDF: ${filename} (${buffer.length} bytes)`);
       try {
-        // Use the standard pdf-parse (v1.1.1)
-        // With require, 'pdf' is the function directly
-        const parseFn = pdf;
+        // Robust way to get the function from pdf-parse
+        // In ESM, it might be on .default
+        let parseFn = pdf;
+        if (typeof parseFn !== 'function' && (parseFn as any).default) {
+          parseFn = (parseFn as any).default;
+        }
         
         if (typeof parseFn !== 'function') {
-          console.error('!!! pdf-parse is not a function. Type:', typeof parseFn);
+          console.error('!!! pdf-parse is not a function. Type:', typeof parseFn, 'Value:', parseFn);
           throw new Error('PDF parsing library failed to load correctly');
         }
 
         console.log('Starting PDF extraction...');
-        // pdf-parse can be slow, so we log before and after
-        const data = await parseFn(buffer);
+        const data = await (parseFn as any)(buffer);
         console.log(`PDF extraction complete. Extracted ${data?.text?.length || 0} characters.`);
         text = data.text;
       } catch (pdfErr: any) {
@@ -95,12 +139,95 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
       return res.status(400).json({ error: 'No text could be extracted from this file. It might be an image-based PDF or empty.' });
     }
 
-    console.log(`<<< Successfully parsed ${text.length} characters from ${filename}`);
-    res.json({ text, filename });
+    // Automatically ingest into RAG
+    console.log(`--- Ingesting ${filename} into RAG...`);
+    const textChunks = chunkText(text);
+    const embeddings = await generateEmbeddings(textChunks);
+    const newChunks = textChunks.map((t, i) => ({
+      text: t,
+      embedding: embeddings[i],
+      filename
+    }));
+    documentChunks.push(...newChunks);
+
+    console.log(`<<< Successfully parsed and ingested ${text.length} characters from ${filename}`);
+    res.json({ text, filename, chunkCount: documentChunks.length });
   } catch (error: any) {
     console.error(`!!! Error parsing ${filename}:`, error);
     res.status(500).json({ error: `Failed to parse file: ${error.message || 'Unknown error'}` });
   }
+});
+
+app.post('/api/chat', async (req: any, res: any) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'Message is required' });
+
+  try {
+    console.log(`>>> Chat request: ${message.slice(0, 50)}...`);
+    
+    // 1. Retrieve
+    if (documentChunks.length === 0) {
+      return res.json({ 
+        content: "I don't have any documents in my vault yet. Please upload some files first!",
+        sources: [] 
+      });
+    }
+
+    const queryEmbeddingResponse = await ai.models.embedContent({
+      model: "gemini-embedding-2-preview",
+      contents: [message]
+    });
+    const queryEmbedding = queryEmbeddingResponse.embeddings[0].values;
+
+    const scoredChunks = documentChunks.map(chunk => ({
+      chunk,
+      score: cosineSimilarity(queryEmbedding, chunk.embedding)
+    }));
+
+    const relevantChunks = scoredChunks
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(item => item.chunk);
+
+    const context = relevantChunks.map(c => c.text).join('\n\n');
+    const sources = Array.from(new Set(relevantChunks.map(c => c.filename)));
+
+    // 2. Generate
+    const prompt = `
+      You are a helpful AI Knowledge Assistant. Use the following pieces of retrieved context to answer the user's question.
+      If you don't know the answer based on the context, just say that you don't know, don't try to make up an answer.
+      
+      Context:
+      ${context}
+      
+      Question: ${message}
+      
+      Answer:
+    `;
+
+    const result = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        systemInstruction: "You are a professional RAG assistant. Be concise and accurate. Always cite your sources if possible."
+      }
+    });
+
+    console.log(`<<< Chat response generated (${result.text?.length || 0} chars)`);
+    res.json({ content: result.text, sources });
+  } catch (error: any) {
+    console.error('!!! Chat Error:', error);
+    res.status(500).json({ error: `Failed to generate response: ${error.message}` });
+  }
+});
+
+app.post('/api/clear', (req, res) => {
+  documentChunks = [];
+  res.json({ status: 'ok', chunkCount: 0 });
+});
+
+app.get('/api/stats', (req, res) => {
+  res.json({ chunkCount: documentChunks.length });
 });
 
 // Catch-all for unmatched API routes

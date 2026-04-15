@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { Upload, File, X, CheckCircle2, Loader2 } from 'lucide-react';
-import { ragService } from '../services/ragService';
 import { cn } from '../lib/utils';
 
 interface FileUploadProps {
@@ -12,9 +11,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
   const [files, setFiles] = useState<{ name: string; status: 'pending' | 'success' | 'error'; error?: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const clearFiles = () => {
+  const clearFiles = async () => {
     setFiles([]);
-    ragService.clear();
+    try {
+      await fetch('/api/clear', { method: 'POST' });
+    } catch (err) {
+      console.error('Failed to clear vault:', err);
+    }
     onUploadComplete();
   };
 
@@ -71,9 +74,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
           throw new Error(`Invalid response format. Preview: ${preview || 'HTML response'}...`);
         }
 
-        const { text, filename } = await response.json();
-        await ragService.addDocument(text, filename);
-
+        const { chunkCount } = await response.json();
+        
         setFiles(prev => prev.map(f => f.name === file.name ? { ...f, status: 'success' } : f));
       } catch (error: any) {
         console.error('Error uploading file:', error);

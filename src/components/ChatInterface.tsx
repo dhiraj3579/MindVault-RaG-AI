@@ -1,12 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
-import { ragService } from '../services/ragService';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 interface Message {
   role: 'user' | 'assistant';
@@ -35,43 +31,28 @@ export const ChatInterface: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // 1. Retrieve relevant context
-      const relevantChunks = await ragService.retrieve(userMessage);
-      const context = relevantChunks.map(c => c.text).join('\n\n');
-      const sources = Array.from(new Set(relevantChunks.map(c => c.filename)));
-
-      // 2. Generate response with context
-      const prompt = `
-        You are a helpful AI Knowledge Assistant. Use the following pieces of retrieved context to answer the user's question.
-        If you don't know the answer based on the context, just say that you don't know, don't try to make up an answer.
-        
-        Context:
-        ${context || "No relevant context found in uploaded documents."}
-        
-        Question: ${userMessage}
-        
-        Answer:
-      `;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          systemInstruction: "You are a professional RAG assistant. Be concise and accurate. Always cite your sources if possible."
-        }
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage })
       });
 
-      const assistantMessage = response.text || "I'm sorry, I couldn't generate a response.";
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to get response');
+      }
+
+      const data = await response.json();
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: assistantMessage,
-        sources: sources.length > 0 ? sources : undefined
+        content: data.content,
+        sources: data.sources
       }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in chat:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "An error occurred while processing your request. Please check your API key and try again." 
+        content: `Error: ${error.message || "An error occurred while processing your request."}` 
       }]);
     } finally {
       setIsLoading(false);

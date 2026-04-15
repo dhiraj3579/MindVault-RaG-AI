@@ -1,11 +1,15 @@
 import express from 'express';
 import multer from 'multer';
-import pdf from 'pdf-parse';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdf = require('pdf-parse');
 import mammoth from 'mammoth';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from "@google/genai";
+
+console.log('--- Server starting up ---');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,7 +18,12 @@ const app = express();
 const PORT = 3000;
 
 // Initialize Gemini
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const apiKey = process.env.MY_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.warn('!!! WARNING: MY_GEMINI_API_KEY is not set. AI features will not work.');
+  console.warn('!!! Please add MY_GEMINI_API_KEY to your secrets in AI Studio.');
+}
+const ai = new GoogleGenAI({ apiKey: apiKey || 'missing-key' });
 
 // In-memory RAG storage (simplified for demo)
 interface DocumentChunk {
@@ -76,7 +85,11 @@ const upload = multer({
 // Health check
 app.get('/api/health', (req, res) => {
   console.log('Health check requested');
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    apiKeySet: !!(process.env.MY_GEMINI_API_KEY || process.env.GEMINI_API_KEY)
+  });
 });
 
 // Simple POST test without multer
@@ -102,12 +115,8 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
     if (mimetype === 'application/pdf') {
       console.log(`--- Processing PDF: ${filename} (${buffer.length} bytes)`);
       try {
-        // Robust way to get the function from pdf-parse
-        // In ESM, it might be on .default
-        let parseFn = pdf;
-        if (typeof parseFn !== 'function' && (parseFn as any).default) {
-          parseFn = (parseFn as any).default;
-        }
+        // With require, pdf is the function directly
+        const parseFn = pdf;
         
         if (typeof parseFn !== 'function') {
           console.error('!!! pdf-parse is not a function. Type:', typeof parseFn, 'Value:', parseFn);
@@ -154,6 +163,14 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
     res.json({ text, filename, chunkCount: documentChunks.length });
   } catch (error: any) {
     console.error(`!!! Error parsing ${filename}:`, error);
+    
+    // Check for API key errors during embedding generation
+    if (error.message?.includes('API key not valid') || error.message?.includes('API_KEY_INVALID')) {
+      return res.status(401).json({ 
+        error: 'Invalid Gemini API Key. Please check your GEMINI_API_KEY in your environment variables or secrets.' 
+      });
+    }
+
     res.status(500).json({ error: `Failed to parse file: ${error.message || 'Unknown error'}` });
   }
 });
@@ -217,6 +234,14 @@ app.post('/api/chat', async (req: any, res: any) => {
     res.json({ content: result.text, sources });
   } catch (error: any) {
     console.error('!!! Chat Error:', error);
+    
+    // Check for API key errors
+    if (error.message?.includes('API key not valid') || error.message?.includes('API_KEY_INVALID')) {
+      return res.status(401).json({ 
+        error: 'Invalid Gemini API Key. Please check your GEMINI_API_KEY in your environment variables or secrets.' 
+      });
+    }
+    
     res.status(500).json({ error: `Failed to generate response: ${error.message}` });
   }
 });
@@ -238,12 +263,16 @@ app.use('/api/*', (req, res) => {
 
 // Vite middleware for development
 async function setupVite(app: any) {
+  console.log(`--- Setting up Vite (NODE_ENV: ${process.env.NODE_ENV}) ---`);
   if (process.env.NODE_ENV !== 'production') {
+    console.log('--- Importing Vite ---');
     const { createServer: createViteServer } = await import('vite');
+    console.log('--- Creating Vite Server ---');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
+    console.log('--- Vite Server Created, using middlewares ---');
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
@@ -268,9 +297,12 @@ export default app;
 
 // Start server if running directly
 if (process.env.NODE_ENV !== 'production' || process.env.VITE_START_SERVER === 'true') {
-  setupVite(app).then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server listening on http://localhost:${PORT} - Initializing Vite...`);
+    setupVite(app).then(() => {
+      console.log('Vite initialization complete.');
+    }).catch(err => {
+      console.error('Vite initialization failed:', err);
     });
   });
 } else {

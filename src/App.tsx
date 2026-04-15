@@ -3,16 +3,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { ChatInterface } from './components/ChatInterface';
-import { Database, FileText, Layout, Info, Github, CheckCircle2, X } from 'lucide-react';
+import { Database, FileText, Layout, Info, Github, CheckCircle2, X, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
 export default function App() {
   const [chunkCount, setChunkCount] = useState(0);
-  const [apiStatus, setApiStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [apiStatus, setApiStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+  const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        if (!data.apiKeySet) {
+          setIsApiKeyMissing(true);
+        }
+      } catch (err) {
+        console.error('Initial health check failed:', err);
+      }
+    };
+    checkHealth();
+  }, []);
 
   const handleUploadComplete = async () => {
     try {
@@ -75,6 +91,26 @@ export default function App() {
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
       {/* Status Banner */}
       <AnimatePresence>
+        {isApiKeyMissing && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="bg-amber-50 border-b border-amber-200 px-6 py-2"
+          >
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-amber-800 text-xs font-medium">
+                <AlertTriangle className="w-4 h-4" />
+                <span>MY_GEMINI_API_KEY is missing. Please add it to your Secrets in AI Studio to enable AI features.</span>
+              </div>
+              <button 
+                onClick={() => setIsApiKeyMissing(false)}
+                className="text-amber-500 hover:text-amber-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
         {apiStatus && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }}

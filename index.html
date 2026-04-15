@@ -7,12 +7,14 @@
   </head>
   <body>
     <div id="root">
-      <div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; color: #666;">
+      <div id="loading-screen" style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; color: #666; background: #fff;">
         Loading MindVault...
       </div>
     </div>
     <script>
+      console.log('Index.html loaded');
       window.onerror = function(msg, url, line, col, error) {
+        console.error('Frontend Error:', msg, url, line, col, error);
         var div = document.createElement('div');
         div.style.position = 'fixed';
         div.style.top = '0';
@@ -29,6 +31,12 @@
         div.innerHTML = '<strong>Frontend Error Detected:</strong><br>' + msg + '<br><br>URL: ' + url + '<br>Line: ' + line + ':' + col;
         document.body.appendChild(div);
       };
+      setTimeout(function() {
+        var loading = document.getElementById('loading-screen');
+        if (loading && !window.__APP_INITIALIZED__) {
+          loading.innerHTML = 'Loading taking longer than expected... Check console for errors.';
+        }
+      }, 5000);
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

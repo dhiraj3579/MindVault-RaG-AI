@@ -100,7 +100,12 @@ export default function App() {
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-amber-800 text-xs font-medium">
                 <AlertTriangle className="w-4 h-4" />
-                <span>MY_GEMINI_API_KEY is missing. Please add it to your Secrets in AI Studio to enable AI features.</span>
+                <span>
+                  MY_GEMINI_API_KEY is missing. 
+                  {window.location.hostname.includes('vercel.app') 
+                    ? " Please add it to your Environment Variables in the Vercel Dashboard." 
+                    : " Please add it to your Secrets in AI Studio."}
+                </span>
               </div>
               <button 
                 onClick={() => setIsApiKeyMissing(false)}

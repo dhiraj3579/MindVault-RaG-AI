@@ -58,6 +58,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadComplete }) => {
             }
             
             const preview = text.slice(0, 100).replace(/<[^>]*>/g, '').trim();
+            if (text.includes('FUNCTION_INVOCATION_FAILED')) {
+              throw new Error('Vercel error: The serverless function failed. This is usually due to a missing MY_GEMINI_API_KEY in Vercel settings or a function timeout.');
+            }
             throw new Error(`Server error (${response.status}): ${preview || 'Check server logs'}...`);
           }
         }

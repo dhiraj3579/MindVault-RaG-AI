@@ -2,7 +2,13 @@ import express from 'express';
 import multer from 'multer';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const pdf = require('pdf-parse');
+let pdf: any;
+try {
+  pdf = require('pdf-parse');
+  console.log('--- pdf-parse library loaded successfully ---');
+} catch (err) {
+  console.error('!!! Failed to load pdf-parse library:', err);
+}
 import mammoth from 'mammoth';
 import cors from 'cors';
 import path from 'path';
@@ -166,8 +172,10 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
     
     // Check for API key errors during embedding generation
     if (error.message?.includes('API key not valid') || error.message?.includes('API_KEY_INVALID')) {
+      const isVercel = process.env.VERCEL === '1';
+      const envVarName = 'MY_GEMINI_API_KEY';
       return res.status(401).json({ 
-        error: 'Invalid Gemini API Key. Please check your GEMINI_API_KEY in your environment variables or secrets.' 
+        error: `Invalid Gemini API Key. ${isVercel ? `On Vercel, please ensure you have added the ${envVarName} environment variable in your project settings.` : `Please check your ${envVarName} in your secrets in AI Studio.`}` 
       });
     }
 
@@ -237,8 +245,10 @@ app.post('/api/chat', async (req: any, res: any) => {
     
     // Check for API key errors
     if (error.message?.includes('API key not valid') || error.message?.includes('API_KEY_INVALID')) {
+      const isVercel = process.env.VERCEL === '1';
+      const envVarName = 'MY_GEMINI_API_KEY';
       return res.status(401).json({ 
-        error: 'Invalid Gemini API Key. Please check your GEMINI_API_KEY in your environment variables or secrets.' 
+        error: `Invalid Gemini API Key. ${isVercel ? `On Vercel, please ensure you have added the ${envVarName} environment variable in your project settings.` : `Please check your ${envVarName} in your secrets in AI Studio.`}` 
       });
     }
     
@@ -306,7 +316,12 @@ if (process.env.NODE_ENV !== 'production' || process.env.VITE_START_SERVER === '
     });
   });
 } else {
-  // In production (Vercel), we don't need setupVite because vercel.json
-  // handles static files and rewrites. This keeps the function slim.
-  console.log('Production mode: Serverless function initialized');
+  // In production (Vercel), we still need to set up the static routes
+  // but we don't call app.listen()
+  console.log('Production mode: Initializing routes...');
+  setupVite(app).then(() => {
+    console.log('Production routes initialized.');
+  }).catch(err => {
+    console.error('Production route initialization failed:', err);
+  });
 }

@@ -3,46 +3,60 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MindVault AI - Diagnostic</title>
+    <title>MindVault AI | Personal Knowledge Vault</title>
+    <meta name="description" content="Securely chat with your documents using private RAG technology." />
+    <!-- VERSION: 1.0.5-FINAL -->
     <style>
       body {
         margin: 0;
-        background-color: #ff6b00 !important; /* VIBRANT ORANGE */
-        color: white !important;
-        font-family: sans-serif;
+        background-color: #f9fafb;
+        font-family: 'Inter', -apple-system, sans-serif;
+      }
+      #root-loader {
+        position: fixed;
+        inset: 0;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 100vh;
-        text-align: center;
+        background: #09090b;
+        color: white;
+        z-index: 9999;
+        transition: opacity 0.5s ease;
       }
-      #status-dot {
-        width: 20px;
-        height: 20px;
-        background: red;
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top-color: #6366f1;
         border-radius: 50%;
-        margin-top: 20px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
     </style>
   </head>
   <body>
-    <h1>MindVault AI Loading...</h1>
-    <p>If you see this ORANGE screen, the HTML is working.</p>
-    <div id="status-dot"></div>
+    <div id="root-loader">
+      <div class="spinner"></div>
+      <div style="font-weight: 500; letter-spacing: -0.01em;">MindVault AI</div>
+      <div style="font-size: 10px; color: #71717a; margin-top: 8px;">Preparing your vault...</div>
+    </div>
+
     <div id="root"></div>
 
-    <script>
-      console.log('Diagnostic: HTML Loaded');
-      document.getElementById('status-dot').style.background = 'blue';
-      
-      window.onerror = function(msg, url, line) {
-        document.body.style.backgroundColor = 'red';
-        document.body.innerHTML += '<div style="background: white; color: black; padding: 20px; margin: 20px; border: 5px solid black;">' +
-                                    '<h3>JS ERROR DETECTED</h3>' + msg + '<br>File: ' + url + '<br>Line: ' + line + 
-                                   '</div>';
-      };
-    </script>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Automatically hide loader when React is ready
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const loader = document.getElementById('root-loader');
+          if (loader) loader.style.opacity = '0';
+          setTimeout(() => loader?.remove(), 500);
+        }, 800);
+      });
+    </script>
   </body>
 </html>

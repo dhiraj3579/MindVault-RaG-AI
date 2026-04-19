@@ -9,9 +9,10 @@ import { ChatInterface } from './components/ChatInterface';
 import { Database, FileText, Layout, Info, Github, CheckCircle2, X, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
+import { DocumentChunk } from './types';
 
 export default function App() {
-  const [chunkCount, setChunkCount] = useState(0);
+  const [documentChunks, setDocumentChunks] = useState<DocumentChunk[]>([]);
   const [apiStatus, setApiStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
   const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
 
@@ -19,9 +20,11 @@ export default function App() {
     const checkHealth = async () => {
       try {
         const res = await fetch('/api/health');
-        const data = await res.json();
-        if (!data.apiKeySet) {
-          setIsApiKeyMissing(true);
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.apiKeySet) {
+            setIsApiKeyMissing(true);
+          }
         }
       } catch (err) {
         console.error('Initial health check failed:', err);
@@ -30,14 +33,13 @@ export default function App() {
     checkHealth();
   }, []);
 
-  const handleUploadComplete = async () => {
-    try {
-      const res = await fetch('/api/stats');
-      const data = await res.json();
-      setChunkCount(data.chunkCount);
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    }
+  const handleChunksParsed = (newChunks: DocumentChunk[]) => {
+    setDocumentChunks(prev => [...prev, ...newChunks]);
+  };
+
+  const clearVault = () => {
+    setDocumentChunks([]);
+    showStatus('Vault cleared successfully', 'success');
   };
 
   const showStatus = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -176,7 +178,7 @@ export default function App() {
                   <FileText className="w-4 h-4" />
                   Knowledge Source
                 </div>
-                <FileUpload onUploadComplete={handleUploadComplete} />
+                <FileUpload onChunksParsed={handleChunksParsed} onClear={clearVault} />
               </section>
 
               <section className="p-6 bg-white border border-zinc-200 rounded-2xl space-y-4 shadow-sm">
@@ -187,7 +189,7 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
                     <p className="text-xs text-zinc-500 font-medium">Indexed Chunks</p>
-                    <p className="text-2xl font-bold text-zinc-900">{chunkCount}</p>
+                    <p className="text-2xl font-bold text-zinc-900">{documentChunks.length}</p>
                   </div>
                   <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
                     <p className="text-xs text-zinc-500 font-medium">Status</p>
@@ -207,7 +209,7 @@ export default function App() {
 
           {/* Right Column: Chat Interface */}
           <div className="lg:col-span-8">
-            <ChatInterface />
+            <ChatInterface documentChunks={documentChunks} />
           </div>
         </div>
       </main>

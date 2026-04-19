@@ -1,16 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { geminiService, cosineSimilarity } from '../services/geminiService';
+import { DocumentChunk, Message } from '../types';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: string[];
+interface ChatInterfaceProps {
+  documentChunks: DocumentChunk[];
 }
 
-export const ChatInterface: React.FC = () => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ documentChunks }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,28 +31,45 @@ export const ChatInterface: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to get response');
+      if (documentChunks.length === 0) {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: "Your mental vault is empty! Please upload some documents first so I can assist you with your knowledge." 
+        }]);
+        return;
       }
 
-      const data = await response.json();
+      // 1. Get embedding for the user's question (Frontend)
+      const queryEmbeddings = await geminiService.generateEmbeddings([userMessage]);
+      const queryEmbedding = queryEmbeddings[0];
+
+      // 2. Perform Local Semantic Search (RAG)
+      const scoredChunks = documentChunks.map(chunk => ({
+        chunk,
+        score: cosineSimilarity(queryEmbedding, chunk.embedding)
+      }));
+
+      const relevantChunks = scoredChunks
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4)
+        .map(item => item.chunk);
+
+      const context = relevantChunks.map(c => c.text).join('\n\n');
+      const sources = Array.from(new Set(relevantChunks.map(c => c.filename)));
+
+      // 3. Get generated response from Gemini (Frontend)
+      const aiResponse = await geminiService.getChatResponse(userMessage, context);
+
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: data.content,
-        sources: data.sources
+        content: aiResponse,
+        sources: sources
       }]);
     } catch (error: any) {
       console.error('Error in chat:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `Error: ${error.message || "An error occurred while processing your request."}` 
+        content: `My apologies, I encountered an issue processing that: ${error.message || "Unknown error"}. Please check your connection or API key.` 
       }]);
     } finally {
       setIsLoading(false);

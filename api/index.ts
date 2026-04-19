@@ -1,28 +1,44 @@
 import express from 'express';
 import multer from 'multer';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-let pdf: any;
-try {
-  pdf = require('pdf-parse');
-  console.log('--- pdf-parse library loaded successfully ---');
-} catch (err) {
-  console.error('!!! Failed to load pdf-parse library:', err);
-}
 import mammoth from 'mammoth';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from "@google/genai";
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Health check - DEFINED FIRST to avoid initialization crashes
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    apiKeySet: !!(process.env.MY_GEMINI_API_KEY || process.env.GEMINI_API_KEY),
+    environment: process.env.VERCEL ? 'vercel' : 'development'
+  });
+});
+
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true }));
+
 // Initialize Gemini
-const apiKey = process.env.MY_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey || 'missing-key' });
+const apiKey = process.env.MY_GEMINI_API_KEY || process.env.GEMINI_API_KEY || 'missing-key';
+const ai = new GoogleGenAI({ apiKey });
+
+// Lazy-loaded pdf-parse
+let pdf: any;
+function getPdfParser() {
+  if (!pdf) {
+    pdf = require('pdf-parse');
+  }
+  return pdf;
+}
 
 // In-memory RAG storage
 interface DocumentChunk {
@@ -64,47 +80,14 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true }));
-
+// Middleware removed from here as it's now at the top
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    try {
-      const { createServer: createViteServer } = await import('vite');
-      const vite = await createViteServer({
-        server: { middlewareMode: true },
-        appType: 'spa',
-      });
-      // Apply Vite middleware BEFORE other routes
-      app.use(vite.middlewares);
-    } catch (e) {
-      console.warn('Vite not found, skipping middleware');
-    }
-
-    const PORT = 3000;
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
-}
-
-startServer();
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    apiKeySet: !!(process.env.MY_GEMINI_API_KEY || process.env.GEMINI_API_KEY),
-    environment: process.env.VERCEL ? 'vercel' : 'development'
-  });
-});
+// Server startup logic moved to dev-only or removed for Vercel
+// startServer();
 
 app.post('/api/test-post', (req, res) => {
   res.json({ status: 'ok', received: req.body });
@@ -118,7 +101,7 @@ app.post('/api/parse', upload.single('file'), async (req: any, res: any) => {
     let text = '';
 
     if (mimetype === 'application/pdf') {
-      const data = await (pdf as any)(buffer);
+      const data = await getPdfParser()(buffer);
       text = data.text;
     } else if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       const result = await mammoth.extractRawText({ buffer });

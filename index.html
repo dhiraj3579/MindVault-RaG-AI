@@ -3,14 +3,46 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MindVault AI</title>
+    <title>MindVault AI - Diagnostic</title>
+    <style>
+      body {
+        margin: 0;
+        background-color: #ff6b00 !important; /* VIBRANT ORANGE */
+        color: white !important;
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        text-align: center;
+      }
+      #status-dot {
+        width: 20px;
+        height: 20px;
+        background: red;
+        border-radius: 50%;
+        margin-top: 20px;
+      }
+    </style>
   </head>
-  <body class="bg-zinc-50">
-    <div id="root">
-      <div style="display: flex; height: 100vh; width: 100vw; align-items: center; justify-content: center; font-family: sans-serif; color: #6366f1;">
-        <p>Loading MindVault AI...</p>
-      </div>
-    </div>
+  <body>
+    <h1>MindVault AI Loading...</h1>
+    <p>If you see this ORANGE screen, the HTML is working.</p>
+    <div id="status-dot"></div>
+    <div id="root"></div>
+
+    <script>
+      console.log('Diagnostic: HTML Loaded');
+      document.getElementById('status-dot').style.background = 'blue';
+      
+      window.onerror = function(msg, url, line) {
+        document.body.style.backgroundColor = 'red';
+        document.body.innerHTML += '<div style="background: white; color: black; padding: 20px; margin: 20px; border: 5px solid black;">' +
+                                    '<h3>JS ERROR DETECTED</h3>' + msg + '<br>File: ' + url + '<br>Line: ' + line + 
+                                   '</div>';
+      };
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

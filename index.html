@@ -4,55 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MindVault AI</title>
-    <style>
-      body { margin: 0; background: #09090b; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-      #loading-container { display: flex; height: 100vh; width: 100vw; align-items: center; justify-content: center; flex-direction: column; position: fixed; top: 0; left: 0; z-index: 9999; background: #09090b; }
-      .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #6366f1; border-radius: 50%; animation: spin 1s linear infinite; }
-      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-      #error-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #450a0a; color: #fecaca; padding: 40px; box-sizing: border-box; z-index: 10000; font-family: monospace; overflow: auto; }
-    </style>
   </head>
-  <body>
-    <div id="root"></div>
-    
-    <div id="loading-container">
-      <div class="spinner"></div>
-      <p style="margin-top: 20px; color: #94a3b8; font-size: 14px; letter-spacing: 0.05em;">INITIALIZING MINDVAULT</p>
+  <body class="bg-zinc-50">
+    <div id="root">
+      <div style="display: flex; height: 100vh; width: 100vw; align-items: center; justify-content: center; font-family: sans-serif; color: #6366f1;">
+        <p>Loading MindVault AI...</p>
+      </div>
     </div>
-
-    <div id="error-overlay">
-      <h1 style="color: white; margin-top: 0;">Frontend Crash Detected</h1>
-      <p>The application failed to load. This usually happens due to a JavaScript error or a missing dependency.</p>
-      <hr style="border: 0; border-top: 1px solid #7f1d1d; margin: 20px 0;" />
-      <pre id="error-details"></pre>
-      <button onclick="location.reload()" style="background: white; color: #450a0a; border: 0; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 20px;">Retry Loading</button>
-    </div>
-
-    <script>
-      // Diagnostic script
-      console.log('MindVault: HTML Entry Point Loaded');
-      
-      window.onerror = function(msg, url, line, col, error) {
-        var overlay = document.getElementById('error-overlay');
-        var details = document.getElementById('error-details');
-        overlay.style.display = 'block';
-        details.textContent = 'Error: ' + msg + '\nFile: ' + url + '\nLine: ' + line + ':' + col + '\n\nStack Trace:\n' + (error ? error.stack : 'N/A');
-        return false;
-      };
-
-      // Hide loading screen when React app initializes
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          if (window.__APP_INITIALIZED__) {
-            var loader = document.getElementById('loading-container');
-            if (loader) loader.style.display = 'none';
-          } else {
-            console.warn('MindVault: App initialization timed out. Check for JS errors.');
-          }
-        }, 1000);
-      });
-    </script>
-    
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

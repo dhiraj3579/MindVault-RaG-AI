@@ -11,9 +11,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
 export default function App() {
-  useEffect(() => {
-    (window as any).__APP_INITIALIZED__ = true;
-  }, []);
   const [chunkCount, setChunkCount] = useState(0);
   const [apiStatus, setApiStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
   const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);

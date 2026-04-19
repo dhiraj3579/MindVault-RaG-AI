@@ -14,24 +14,6 @@ import { DocumentChunk } from './types';
 export default function App() {
   const [documentChunks, setDocumentChunks] = useState<DocumentChunk[]>([]);
   const [apiStatus, setApiStatus] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
-  const [isApiKeyMissing, setIsApiKeyMissing] = useState(false);
-
-  useEffect(() => {
-    const checkHealth = async () => {
-      try {
-        const res = await fetch('/api/health');
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.apiKeySet) {
-            setIsApiKeyMissing(true);
-          }
-        }
-      } catch (err) {
-        console.error('Initial health check failed:', err);
-      }
-    };
-    checkHealth();
-  }, []);
 
   const handleChunksParsed = (newChunks: DocumentChunk[]) => {
     setDocumentChunks(prev => [...prev, ...newChunks]);
@@ -47,77 +29,10 @@ export default function App() {
     setTimeout(() => setApiStatus(null), 5000);
   };
 
-  const testApi = async () => {
-    console.log('Testing GET /api/health...');
-    try {
-      const res = await fetch('/api/health');
-      const data = await res.json();
-      console.log('GET Success:', data);
-      showStatus(`API Status: ${data.status} (${data.timestamp})`, 'success');
-    } catch (err: any) {
-      console.error('GET Failed:', err);
-      showStatus(`API Test Failed: ${err.message}`, 'error');
-    }
-  };
-
-  const testPost = async () => {
-    console.log('Testing POST /api/test-post...');
-    try {
-      const res = await fetch('/api/test-post', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ test: 'data' })
-      });
-      
-      if (!res.ok) {
-        const text = await res.text();
-        console.error('POST Failed (HTML):', text);
-        if (text.includes('Cookie check') || text.includes('Authenticate in new window')) {
-          throw new Error('Action required: Your browser is blocking cookies. Please click "Authenticate in new window" if prompted, or open the app in a new tab.');
-        }
-        throw new Error(`Server returned HTML instead of JSON (Status ${res.status})`);
-      }
-      
-      const data = await res.json();
-      console.log('POST Success:', data);
-      showStatus(`POST Test Success: Received ${JSON.stringify(data.received)}`, 'success');
-    } catch (err: any) {
-      console.error('POST Failed:', err);
-      showStatus(`POST Test Failed: ${err.message}`, 'error');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      {/* Status Banner */}
+      {/* Status Messages */}
       <AnimatePresence>
-        {isApiKeyMissing && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            className="bg-amber-50 border-b border-amber-200 px-6 py-2"
-          >
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-amber-800 text-xs font-medium">
-                <AlertTriangle className="w-4 h-4" />
-                <span>
-                  MY_GEMINI_API_KEY is missing. 
-                  {window.location.hostname.includes('vercel.app') 
-                    ? " Please add it to your Environment Variables in the Vercel Dashboard." 
-                    : " Please add it to your Secrets in AI Studio."}
-                </span>
-              </div>
-              <button 
-                onClick={() => setIsApiKeyMissing(false)}
-                className="text-amber-500 hover:text-amber-700"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </motion.div>
-        )}
         {apiStatus && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
@@ -146,8 +61,6 @@ export default function App() {
             <span className="font-bold text-xl tracking-tight">MindVault</span>
           </div>
           <div className="flex items-center gap-6">
-            <button onClick={testApi} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider">Test GET</button>
-            <button onClick={testPost} className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider">Test POST</button>
             <a href="#" className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">Documentation</a>
             <a href="#" className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">API</a>
             <div className="h-4 w-px bg-zinc-200" />
